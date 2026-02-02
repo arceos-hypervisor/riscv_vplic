@@ -1,14 +1,17 @@
 use crate::consts::*;
-use axaddrspace::{GuestPhysAddr, HostPhysAddr};
+use axaddrspace::{GuestPhysAddr, GuestPhysAddrRange, HostPhysAddr};
 use bitmaps::Bitmap;
 use core::option::Option;
 use spin::Mutex;
+use log::{debug, warn};
 
 pub struct VPlicGlobal {
     /// The address of the VPlicGlobal in the guest physical address space.
     pub addr: GuestPhysAddr,
     /// The size of the VPlicGlobal in bytes.
     pub size: usize,
+    /// The address range of this device (cached for address_ranges())
+    pub addr_range: GuestPhysAddrRange,
     /// Num of contexts.
     pub contexts_num: usize,
     /// IRQs assigned to this VPlicGlobal.
@@ -38,6 +41,7 @@ impl VPlicGlobal {
         Self {
             addr,
             size,
+            addr_range: GuestPhysAddrRange::from_start_size(addr, size),
             assigned_irqs: Mutex::new(Bitmap::new()),
             pending_irqs: Mutex::new(Bitmap::new()),
             active_irqs: Mutex::new(Bitmap::new()),
@@ -52,4 +56,65 @@ impl VPlicGlobal {
     //         irq, self.addr, cpu_phys_id
     //     );
     // }
+
+    /// Set an IRQ as pending in the vPLIC.
+    ///
+    /// This marks the interrupt as pending in the vPLIC's pending bitmap.
+    /// The vCPU will see this interrupt when it checks the vPLIC state.
+    ///
+    /// # Arguments
+    ///
+    /// * `irq` - The interrupt number to mark as pending (1-based, 0 is reserved)
+    ///
+    /// # Returns
+    ///
+    /// `true` if the IRQ was successfully marked as pending, `false` if the IRQ number is invalid.
+    pub fn set_irq_pending(&self, irq: usize) -> bool {
+        if irq == 0 || irq >= PLIC_NUM_SOURCES {
+            warn!("Invalid IRQ number: {}", irq);
+            return false;
+        }
+
+        let mut pending = self.pending_irqs.lock();
+        if !pending.get(irq) {
+            pending.set(irq, true);
+            debug!("vPLIC: Set IRQ {} as pending", irq);
+            true
+        } else {
+            // Already pending
+            false
+        }
+    }
+
+    /// Clear a pending IRQ in the vPLIC.
+    ///
+    /// # Arguments
+    ///
+    /// * `irq` - The interrupt number to clear
+    pub fn clear_irq_pending(&self, irq: usize) -> bool {
+        if irq == 0 || irq >= PLIC_NUM_SOURCES {
+            return false;
+        }
+
+        let mut pending = self.pending_irqs.lock();
+        if pending.get(irq) {
+            pending.set(irq, false);
+            debug!("vPLIC: Cleared IRQ {} pending status", irq);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Check if there are any pending interrupts.
+    pub fn has_pending_irqs(&self) -> bool {
+        let pending = self.pending_irqs.lock();
+        // Check if any bit is set in the bitmap
+        for i in 1..PLIC_NUM_SOURCES {
+            if pending.get(i) {
+                return true;
+            }
+        }
+        false
+    }
 }

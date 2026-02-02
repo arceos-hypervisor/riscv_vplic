@@ -15,9 +15,9 @@ description = "RISCV Virtual PLIC implementation."
 default = []
 
 [dependencies]
-axaddrspace = "0.1"
-axdevice_base = "0.1"
-axvisor_api = "0.1"
+axaddrspace = {path = "../axaddrspace"}
+axdevice_base = {path = "../axdevice_base"}
+axvisor_api = {path = "../axvisor_api"}
 
 axerrno = "0.1.0"
 bitmaps = {version = "3.2", default-features = false}
@@ -25,3 +25,6 @@ log = "0.4"
 spin = "0.9"
 
 riscv-h = "0.1"
+
+[target.'cfg(target_arch = "riscv64")'.dependencies]
+axplat-riscv64-qemu-virt = {path = "../../platform/riscv64-qemu-virt"}

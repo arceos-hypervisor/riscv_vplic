@@ -1,7 +1,7 @@
 use crate::consts::*;
 use crate::utils::*;
 use crate::vplic::VPlicGlobal;
-use axaddrspace::{device::AccessWidth, GuestPhysAddrRange, HostPhysAddr};
+use axaddrspace::{device::AccessWidth, GuestPhysAddr, GuestPhysAddrRange, HostPhysAddr};
 use axdevice_base::{BaseDeviceOps, EmuDeviceType};
 
 impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
@@ -9,14 +9,14 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
         EmuDeviceType::PPPTGlobal
     }
 
-    fn address_range(&self) -> GuestPhysAddrRange {
-        GuestPhysAddrRange::from_start_size(self.addr, self.size)
+    fn address_ranges(&self) -> &[GuestPhysAddrRange] {
+        core::slice::from_ref(&self.addr_range)
     }
 
     fn handle_read(
         &self,
-        addr: <GuestPhysAddrRange as axaddrspace::device::DeviceAddrRange>::Addr,
-        width: axaddrspace::device::AccessWidth,
+        addr: GuestPhysAddr,
+        width: AccessWidth,
     ) -> axerrno::AxResult<usize> {
         assert_eq!(width, AccessWidth::Dword);
         let reg = addr - self.addr;
@@ -67,7 +67,9 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
                 let mut pending_irqs = self.pending_irqs.lock();
                 let irq_id = match pending_irqs.first_index() {
                     Some(id) => id,
-                    None => return Ok(0),
+                    None => {
+                        return Ok(0);
+                    }
                 };
 
                 // Check if the IRQ is belong to this context_id, check if is enabled, etc.
@@ -86,8 +88,8 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
 
     fn handle_write(
         &self,
-        addr: <GuestPhysAddrRange as axaddrspace::device::DeviceAddrRange>::Addr,
-        width: axaddrspace::device::AccessWidth,
+        addr: GuestPhysAddr,
+        width: AccessWidth,
         val: usize,
     ) -> axerrno::AxResult {
         assert_eq!(width, AccessWidth::Dword);
@@ -107,9 +109,7 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
                 for i in 0..32 {
                     if (val & bit_mask) != 0 {
                         let irq_id = reg_index * 32 + i;
-                        // Set the pending bit.
                         pending_irqs.set(irq_id as usize, true);
-                        // info!("vPlicGlobal: IRQ {} set to pending", irq_id);
                     }
                     bit_mask <<= 1;
                 }
@@ -141,7 +141,6 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
                         % PLIC_CONTEXT_STRIDE
                         == 0 =>
             {
-                // info!("vPlicGlobal: Writing to CLAIM/COMPLETE reg {reg:#x} val {val:#x}");
                 let context_id =
                     (offset - PLIC_CONTEXT_CTRL_OFFSET - PLIC_CONTEXT_CLAIM_COMPLETE_OFFSET)
                         / PLIC_CONTEXT_STRIDE;
@@ -153,7 +152,8 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
                 let irq_id = val;
 
                 // There is no irq to handle.
-                if self.pending_irqs.lock().is_empty() {
+                let pending_empty = self.pending_irqs.lock().is_empty();
+                if pending_empty {
                     unsafe {
                         riscv_h::register::hvip::clear_vseip();
                     }
@@ -161,6 +161,13 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
 
                 // Clear the active bit, means the IRQ handling is complete.
                 self.active_irqs.lock().set(irq_id, false);
+
+                // Re-enable the IRQ on host PLIC for level-triggered interrupts.
+                // The IRQ was disabled during claim to prevent re-triggering.
+                #[cfg(target_arch = "riscv64")]
+                {
+                    axplat_riscv64_qemu_virt::re_enable_external_irq(irq_id as u32);
+                }
 
                 // Write host PLIC.
                 perform_mmio_write(host_addr, width, irq_id)

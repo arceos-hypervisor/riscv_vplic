@@ -1,9 +1,14 @@
+//! Device emulation operations for VPlicGlobal.
+//!
+//! Implements the `BaseDeviceOps` trait for MMIO read/write handling.
+
 use crate::consts::*;
 use crate::utils::*;
 use crate::vplic::VPlicGlobal;
 use axaddrspace::{device::AccessWidth, GuestPhysAddrRange, HostPhysAddr};
 use axdevice_base::{BaseDeviceOps, EmuDeviceType};
 
+/// Implementation of device emulation operations for virtual PLIC.
 impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
     fn emu_type(&self) -> axdevice_base::EmuDeviceType {
         EmuDeviceType::PPPTGlobal
@@ -13,6 +18,11 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
         GuestPhysAddrRange::from_start_size(self.addr, self.size)
     }
 
+    /// Handles MMIO read operations from the virtual PLIC.
+    ///
+    /// Only 32-bit (Dword) accesses are supported.
+    /// Read operations are forwarded to the host PLIC for most registers,
+    /// except for pending and claim/complete registers which are emulated.
     fn handle_read(
         &self,
         addr: <GuestPhysAddrRange as axaddrspace::device::DeviceAddrRange>::Addr,
@@ -84,6 +94,12 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
         }
     }
 
+    /// Handles MMIO write operations to the virtual PLIC.
+    ///
+    /// Only 32-bit (Dword) accesses are supported.
+    /// Write operations are forwarded to the host PLIC for most registers.
+    /// Writes to the pending register are used for interrupt injection by the hypervisor.
+    /// Writes to the claim/complete register complete interrupt handling.
     fn handle_write(
         &self,
         addr: <GuestPhysAddrRange as axaddrspace::device::DeviceAddrRange>::Addr,

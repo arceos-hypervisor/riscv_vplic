@@ -71,8 +71,7 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
                         / PLIC_CONTEXT_STRIDE;
                 assert!(
                     context_id < self.contexts_num,
-                    "Invalid context id {}",
-                    context_id
+                    "Invalid context id {context_id}"
                 );
                 let mut pending_irqs = self.pending_irqs.lock();
                 let irq_id = match pending_irqs.first_index() {
@@ -86,7 +85,7 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
                 // Clear the pending bit and set the active bit, means the IRQ is being handling.
                 pending_irqs.set(irq_id, false);
                 self.active_irqs.lock().set(irq_id, true);
-                Ok(irq_id as usize)
+                Ok(irq_id)
             }
             _ => {
                 unimplemented!("Unsupported vPlicGlobal read for reg {reg:#x}")
@@ -124,14 +123,14 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
                     if (val & bit_mask) != 0 {
                         let irq_id = reg_index * 32 + i;
                         // Set the pending bit.
-                        pending_irqs.set(irq_id as usize, true);
+                        pending_irqs.set(irq_id, true);
                         // info!("vPlicGlobal: IRQ {} set to pending", irq_id);
                     }
                     bit_mask <<= 1;
                 }
 
                 // Inject the interrupt to the hart by setting the VSEIP bit in HVIP register.
-                if pending_irqs.is_empty() == false {
+                if !pending_irqs.is_empty() {
                     unsafe {
                         riscv_h::register::hvip::set_vseip();
                     }
@@ -163,8 +162,7 @@ impl BaseDeviceOps<GuestPhysAddrRange> for VPlicGlobal {
                         / PLIC_CONTEXT_STRIDE;
                 assert!(
                     context_id < self.contexts_num,
-                    "Invalid context id {}",
-                    context_id
+                    "Invalid context id {context_id}"
                 );
                 let irq_id = val;
 

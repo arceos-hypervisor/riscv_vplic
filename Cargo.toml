@@ -1,6 +1,6 @@
 [package]
 name = "riscv_vplic"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 authors = ["Jingyu liu <liujingyu24s@ict.ac.cn>"]
 description = "RISCV Virtual PLIC implementation."

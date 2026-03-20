@@ -85,28 +85,26 @@ riscv_vplic = "0.2.2"
 
 ### Usage Example
 
-```rust
+```rust,ignore
 use riscv_vplic::VPlicGlobal;
 use axaddrspace::GuestPhysAddr;
 
-fn main() {
-    // Create a virtual PLIC with 2 contexts
-    let vplic = VPlicGlobal::new(
-        GuestPhysAddr::from(0x0c000000),
-        Some(0x4000),
-        2
-    );
-    
-    // Access PLIC properties
-    println!("PLIC address: {:#x}", vplic.addr.as_usize());
-    println!("PLIC size: {:#x}", vplic.size);
-    println!("Contexts: {}", vplic.contexts_num);
-    
-    // Check interrupt bitmap status
-    assert!(vplic.assigned_irqs.lock().is_empty());
-    assert!(vplic.pending_irqs.lock().is_empty());
-    assert!(vplic.active_irqs.lock().is_empty());
-}
+// Create a virtual PLIC with 2 contexts
+let vplic = VPlicGlobal::new(
+    GuestPhysAddr::from(0x0c000000),
+    Some(0x4000),
+    2
+);
+
+// Access PLIC properties
+println!("PLIC address: {:#x}", vplic.addr.as_usize());
+println!("PLIC size: {:#x}", vplic.size);
+println!("Contexts: {}", vplic.contexts_num);
+
+// Check interrupt bitmap status
+assert!(vplic.assigned_irqs.lock().is_empty());
+assert!(vplic.pending_irqs.lock().is_empty());
+assert!(vplic.active_irqs.lock().is_empty());
 ```
 
 ### PLIC Memory Map Constants
@@ -157,4 +155,4 @@ Online documentation: [docs.rs/riscv_vplic](https://docs.rs/riscv_vplic)
 
 # License
 
-This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License, Version 2.0. See the \[LICENSE\](LICENSE) file for details.

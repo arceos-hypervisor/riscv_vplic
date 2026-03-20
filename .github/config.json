@@ -1,8 +1,4 @@
 {
-  "component": {
-    "name": "riscv_vplic",
-    "crate_name": "riscv_vplic"
-  },
   "targets": [
     "riscv64gc-unknown-none-elf"
   ],

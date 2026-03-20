@@ -85,28 +85,26 @@ riscv_vplic = "0.2.2"
 
 ### 使用示例
 
-```rust
+```rust,ignore
 use riscv_vplic::VPlicGlobal;
 use axaddrspace::GuestPhysAddr;
 
-fn main() {
-    // 创建一个支持 2 个上下文的虚拟 PLIC
-    let vplic = VPlicGlobal::new(
-        GuestPhysAddr::from(0x0c000000),
-        Some(0x4000),
-        2
-    );
-    
-    // 访问 PLIC 属性
-    println!("PLIC address: {:#x}", vplic.addr.as_usize());
-    println!("PLIC size: {:#x}", vplic.size);
-    println!("Contexts: {}", vplic.contexts_num);
-    
-    // 检查中断位图状态
-    assert!(vplic.assigned_irqs.lock().is_empty());
-    assert!(vplic.pending_irqs.lock().is_empty());
-    assert!(vplic.active_irqs.lock().is_empty());
-}
+// 创建一个支持 2 个上下文的虚拟 PLIC
+let vplic = VPlicGlobal::new(
+    GuestPhysAddr::from(0x0c000000),
+    Some(0x4000),
+    2
+);
+
+// 访问 PLIC 属性
+println!("PLIC address: {:#x}", vplic.addr.as_usize());
+println!("PLIC size: {:#x}", vplic.size);
+println!("Contexts: {}", vplic.contexts_num);
+
+// 检查中断位图状态
+assert!(vplic.assigned_irqs.lock().is_empty());
+assert!(vplic.pending_irqs.lock().is_empty());
+assert!(vplic.active_irqs.lock().is_empty());
 ```
 
 ### PLIC 内存映射常量
@@ -157,4 +155,4 @@ cargo doc --no-deps --open
 
 # 协议
 
-本项目采用 Apache License, Version 2.0 许可证。详见 [LICENSE](LICENSE) 文件。
+本项目采用 Apache License, Version 2.0 许可证。详见 \[LICENSE\](LICENSE) 文件。
